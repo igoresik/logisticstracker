@@ -38,6 +38,7 @@ To build the exe yourself: `powershell -ExecutionPolicy Bypass -File build.ps1`.
 | `build.ps1` | Builds the exe with PyInstaller |
 | `ship24.py` | Tracking lookup through the Ship24 API |
 | `ebay.py` | eBay sign-in, active listings, Best Offers and orders |
+| `vault.py` | Encrypts saved keys with Windows DPAPI |
 | `schema.sql` | Tables and starting platform fees |
 | `.streamlit/config.toml` | Colours and fonts |
 | `style.css` | Look of the profit receipt and the parcel progress bar |
@@ -54,7 +55,15 @@ The seeded platform fees are only starting values. Set your real ones under **In
 
 ## Connecting your accounts
 
-Everyone uses their own keys. They are typed into the **Settings** tab and saved in `tracker.db` on your computer, in plain text. Never share or commit that file, and never put a key in the code.
+Everyone uses their own keys. They are typed into the **Settings** tab and saved in `tracker.db` on your computer. Never put a key in the code.
+
+How the app protects them:
+
+- On Windows the saved keys are encrypted with your Windows account (DPAPI). A copy of `tracker.db` on another PC or account cannot read them. On other systems they are plain text.
+- Saved keys are never shown again in the page. To change one, type a new one.
+- The app only answers to this computer (`127.0.0.1`) and ignores requests that reach it through another site's domain.
+
+Still keep `tracker.db` to yourself: your listings in it are not encrypted, and a program running under your own Windows account can decrypt the keys.
 
 ### Ship24 (tracking)
 
