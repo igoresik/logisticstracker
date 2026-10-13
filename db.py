@@ -1,9 +1,15 @@
+import os
 import sqlite3
+import sys
 from contextlib import closing
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-DB_PATH = ROOT / "tracker.db"
+# the packaged app unpacks to a temporary folder, so its data lives in AppData instead
+FROZEN = getattr(sys, "frozen", False)
+DATA_DIR = Path(os.environ["APPDATA"]) / "LogisticsTracker" if FROZEN else ROOT
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = DATA_DIR / "tracker.db"
 
 # must match the CHECK in schema.sql
 SHIPMENT_STATUSES = ["pending", "label_created", "shipped", "delivered", "returned"]

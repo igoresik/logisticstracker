@@ -2,7 +2,18 @@
 
 Small Streamlit app for reselling clothes: log listings, check the net profit of an offer, and track shipping labels. Data lives in a local SQLite file.
 
-## Run
+## Download (Windows)
+
+1. Get `LogisticsTracker.exe` from the repository's **Releases** page.
+2. Double-click it. The app opens in its own window after a few seconds. Closing the window stops it.
+
+Good to know:
+
+- Windows may show "Windows protected your PC" because the file is not signed. Choose **More info > Run anyway**.
+- It needs Microsoft Edge or Google Chrome installed; the window is drawn by one of them.
+- Your data is kept in `%APPDATA%\LogisticsTracker\tracker.db`, so replacing the exe with a newer one keeps it.
+
+## Run from source
 
 ```
 python -m venv .venv
@@ -12,6 +23,8 @@ python -m venv .venv
 
 `tracker.db` is created on first run from `schema.sql`.
 
+To build the exe yourself: `powershell -ExecutionPolicy Bypass -File build.ps1`. The result is `dist\LogisticsTracker.exe`.
+
 ## Layout
 
 | File | What it does |
@@ -19,6 +32,8 @@ python -m venv .venv
 | `app.py` | Streamlit UI: Inventory, Profit and Shipping tabs |
 | `db.py` | SQLite connection and queries |
 | `finance.py` | Net profit and margin calculation |
+| `launcher.py` | Start-up of the exe: runs the app and opens its window |
+| `build.ps1` | Builds the exe with PyInstaller |
 | `ship24.py` | Tracking lookup through the Ship24 API |
 | `ebay.py` | eBay sign-in, active listings, Best Offers and orders |
 | `schema.sql` | Tables and starting platform fees |
