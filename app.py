@@ -134,6 +134,11 @@ def journey(status):
 
 
 st.set_page_config(page_title="Logistics Tracker", page_icon=":material/checkroom:", layout="wide")
+# another website can reach a local server by pointing its own domain at 127.0.0.1;
+# only answer when the browser asked for this computer by name
+host = st.context.headers.get("Host", "").rsplit(":", 1)[0]
+if host not in ("", "127.0.0.1", "localhost"):
+    st.stop()
 st.html(db.ROOT / "style.css")
 db.init()
 settings = db.settings()
@@ -377,21 +382,31 @@ with settings_tab:
     with keys_column, st.form("settings"):
         st.subheader("Your keys", anchor=False)
         st.caption("Saved in tracker.db on this computer only. Never share or commit that file.")
+        # saved secrets are never sent back to the page; a new key per save empties the fields
+        replace = "Saved. Type a new one to replace it."
+        saves = st.session_state.setdefault("saves", 0)
         ship24_api_key = st.text_input(
-            "Ship24 API key", settings.get("ship24_api_key", ""), type="password"
+            "Ship24 API key",
+            type="password",
+            placeholder=replace if settings.get("ship24_api_key") else "",
+            key=f"ship24_api_key_{saves}",
         )
         client_id = st.text_input("eBay App ID (Client ID)", settings.get("ebay_client_id", ""))
         client_secret = st.text_input(
-            "eBay Cert ID (Client Secret)", settings.get("ebay_client_secret", ""), type="password"
+            "eBay Cert ID (Client Secret)",
+            type="password",
+            placeholder=replace if settings.get("ebay_client_secret") else "",
+            key=f"ebay_client_secret_{saves}",
         )
         runame = st.text_input("eBay RuName", settings.get("ebay_runame", ""))
         if st.form_submit_button("Save keys", type="primary"):
-            db.save_settings({
-                "ship24_api_key": ship24_api_key.strip(),
-                "ebay_client_id": client_id.strip(),
-                "ebay_client_secret": client_secret.strip(),
-                "ebay_runame": runame.strip(),
-            })
+            values = {"ebay_client_id": client_id.strip(), "ebay_runame": runame.strip()}
+            if ship24_api_key.strip():
+                values["ship24_api_key"] = ship24_api_key.strip()
+            if client_secret.strip():
+                values["ebay_client_secret"] = client_secret.strip()
+            db.save_settings(values)
+            st.session_state["saves"] += 1
             st.rerun()
 
     with ebay_column:
