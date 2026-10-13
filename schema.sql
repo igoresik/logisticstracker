@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS shipments (
     last_event      TEXT
 );
 
--- API keys and tokens, stored in plain text: never share or commit tracker.db
+-- API keys and tokens; vault.py encrypts the secret ones on Windows
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL

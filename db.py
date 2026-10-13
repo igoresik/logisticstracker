@@ -4,6 +4,8 @@ import sys
 from contextlib import closing
 from pathlib import Path
 
+import vault
+
 ROOT = Path(__file__).parent
 # the packaged app unpacks to a temporary folder, so its data lives in AppData instead
 FROZEN = getattr(sys, "frozen", False)
@@ -11,6 +13,7 @@ DATA_DIR = Path(os.environ["APPDATA"]) / "LogisticsTracker" if FROZEN else ROOT
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "tracker.db"
 
+SECRET_SETTINGS = ("ship24_api_key", "ebay_client_secret", "ebay_refresh_token")
 # must match the CHECK in schema.sql
 SHIPMENT_STATUSES = ["pending", "label_created", "shipped", "delivered", "returned"]
 
@@ -29,6 +32,12 @@ def init():
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(shipments)")}
         if "last_event" not in columns:
             conn.execute("ALTER TABLE shipments ADD COLUMN last_event TEXT")
+        # keys saved in plain text by older versions
+        for row in conn.execute("SELECT key, value FROM settings").fetchall():
+            if row["key"] in SECRET_SETTINGS:
+                conn.execute(
+                    "UPDATE settings SET value = ? WHERE key = ?", (vault.lock(row["value"]), row["key"])
+                )
 
 
 def query(sql, params=()):
@@ -108,7 +117,7 @@ def update_tracking(shipment_id, status, last_event):
 
 
 def settings():
-    return {row["key"]: row["value"] for row in query("SELECT key, value FROM settings")}
+    return {row["key"]: vault.unlock(row["value"]) for row in query("SELECT key, value FROM settings")}
 
 
 def save_settings(values):
@@ -116,7 +125,7 @@ def save_settings(values):
         conn.executemany(
             "INSERT INTO settings (key, value) VALUES (?, ?)"
             " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            values.items(),
+            [(key, vault.lock(value) if key in SECRET_SETTINGS else value) for key, value in values.items()],
         )
 
 
