@@ -2,6 +2,8 @@
 
 Small Streamlit app for reselling clothes: log listings, check the net profit of an offer, and track shipping labels. Data lives in a local SQLite file.
 
+![Profit tab: the breakdown of a sale drawn as a receipt](docs/profit.jpg)
+
 ## Download (Windows)
 
 1. Get `LogisticsTracker.exe` from the repository's **Releases** page.
