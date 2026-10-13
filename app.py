@@ -17,6 +17,7 @@ STATUS_LABELS = {
     "delivered": "Delivered",
     "returned": "Returned",
 }
+INVALID_LISTING = "Give it a title and an asking price above €0."
 EBAY_COLUMNS = {
     "item_id": "Item",
     "title": "Title",
@@ -59,6 +60,31 @@ def headline(listings, sold):
     if sold:
         parts.append(f"{eur(made)} made")
     return ", ".join(parts) + "." if parts else "Nothing listed yet."
+
+
+def listing_fields(platform_names, key, listing=None):
+    """Inputs shared by the new and edit forms."""
+    current = listing or {}
+    title = st.text_input("Title", current.get("title", ""), key=f"{key}_title")
+    left, right = st.columns(2)
+    brand = left.text_input("Brand", current.get("brand") or "", key=f"{key}_brand")
+    size = right.text_input("Size", current.get("size") or "", key=f"{key}_size")
+    platform = st.selectbox(
+        "Platform",
+        platform_names,
+        index=platform_names.index(current.get("platform", platform_names[0])),
+        key=f"{key}_platform",
+    )
+    left, right = st.columns(2)
+    cost_price = left.number_input(
+        "You paid (€)", min_value=0.0, value=current.get("cost_price", 0.0), step=0.5, key=f"{key}_cost"
+    )
+    list_price = right.number_input(
+        "Asking price (€)", min_value=0.0, value=current.get("list_price", 0.0), step=0.5, key=f"{key}_price"
+    )
+    if not title.strip() or list_price <= 0:
+        return None
+    return title.strip(), brand.strip(), size.strip(), platform, cost_price, list_price
 
 
 def receipt(listing, sale_price, shipping_cost):
@@ -120,24 +146,18 @@ inventory_tab, profit_tab, shipping_tab, ebay_tab, settings_tab = st.tabs(
 
 with inventory_tab:
     platforms = db.query("SELECT * FROM platforms ORDER BY name")
+    platform_names = [p["name"] for p in platforms]
     form_column, table_column = st.columns([1, 2], gap="large")
 
     with form_column, st.form("add_listing", clear_on_submit=True):
         st.subheader("New listing", anchor=False)
-        title = st.text_input("Title")
-        left, right = st.columns(2)
-        brand = left.text_input("Brand")
-        size = right.text_input("Size")
-        platform = st.selectbox("Platform", [p["name"] for p in platforms])
-        left, right = st.columns(2)
-        cost_price = left.number_input("You paid (€)", min_value=0.0, step=0.5)
-        list_price = right.number_input("Asking price (€)", min_value=0.0, step=0.5)
+        values = listing_fields(platform_names, "new")
         if st.form_submit_button("Add listing", type="primary"):
-            if not title.strip() or list_price <= 0:
-                st.error("Give it a title and an asking price above €0.")
-            else:
-                db.add_listing(title.strip(), brand.strip(), size.strip(), platform, cost_price, list_price)
+            if values:
+                db.add_listing(*values)
                 st.rerun()
+            else:
+                st.error(INVALID_LISTING)
 
     with table_column:
         st.subheader("Live listings", anchor=False)
@@ -173,6 +193,23 @@ with inventory_tab:
                     "listed": st.column_config.DateColumn("Listed", format="D MMM"),
                 },
             )
+            with st.expander("Edit or remove a listing"):
+                chosen = st.selectbox(
+                    "Listing", listings, format_func=lambda row: row["title"], key="edit_choice"
+                )
+                # keyed per listing so the fields refill when another one is picked
+                with st.form(f"edit_{chosen['id']}"):
+                    values = listing_fields(platform_names, f"edit_{chosen['id']}", chosen)
+                    save, remove, _ = st.columns([1, 1, 2])
+                    if save.form_submit_button("Save changes", type="primary"):
+                        if values:
+                            db.update_listing(chosen["id"], *values)
+                            st.rerun()
+                        else:
+                            st.error(INVALID_LISTING)
+                    if remove.form_submit_button("Remove listing"):
+                        db.delete_listing(chosen["id"])
+                        st.rerun()
         else:
             st.info("Nothing listed yet. Add your first listing with the form.")
 

@@ -49,6 +49,19 @@ def add_listing(title, brand, size, platform, cost_price, list_price):
     )
 
 
+def update_listing(listing_id, title, brand, size, platform, cost_price, list_price):
+    execute(
+        "UPDATE listings SET title = ?, brand = ?, size = ?, platform = ?,"
+        " cost_price = ?, list_price = ? WHERE id = ?",
+        (title, brand, size, platform, cost_price, list_price, listing_id),
+    )
+
+
+def delete_listing(listing_id):
+    # sold listings stay: their shipment and profit history point at them
+    execute("DELETE FROM listings WHERE id = ? AND status = 'active'", (listing_id,))
+
+
 def active_listings():
     return query(
         "SELECT l.*, p.fee_pct, p.fee_fixed FROM listings l"
