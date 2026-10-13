@@ -13,3 +13,10 @@ baseRadius = "0.5rem"
 font = "Hanken Grotesk:https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400..700&display=swap, sans-serif"
 headingFont = "Bricolage Grotesque:https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz%2Cwght@12..96%2C500..800&display=swap, sans-serif"
 headingFontWeights = [700, 650, 650]
+
+[server]
+# only this computer can open the app; it shows your saved keys
+address = "127.0.0.1"
+
+[browser]
+gatherUsageStats = false
