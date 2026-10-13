@@ -1,0 +1,116 @@
+/* colours match .streamlit/config.toml */
+
+.receipt-wrap {
+  max-width: 26rem;
+  filter: drop-shadow(0 8px 16px rgba(27, 35, 56, 0.12));
+}
+
+.receipt {
+  --tooth: 8px;
+  background: #fff;
+  color: #1b2338;
+  padding: 1.5rem 1.5rem calc(1.25rem + var(--tooth));
+  font-variant-numeric: tabular-nums;
+  /* torn zigzag bottom edge */
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg)
+    50% / calc(2 * var(--tooth)) 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg)
+    50% / calc(2 * var(--tooth)) 100%;
+}
+
+.receipt p {
+  margin: 0;
+}
+
+.receipt .receipt-title {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 1.35rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.receipt .receipt-note {
+  margin-top: 0.2rem;
+  color: #5a6480;
+  font-size: 0.9rem;
+}
+
+/* .stHtml prefix: beats Streamlit's own list padding */
+.stHtml .receipt dl {
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+
+.receipt .receipt-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+
+.receipt .receipt-line::after {
+  content: "";
+  order: 1;
+  flex: 1;
+  border-bottom: 1px dotted #aab2c5;
+}
+
+.receipt dt {
+  margin: 0;
+  padding: 0;
+  font-weight: 400;
+}
+
+.receipt dd {
+  order: 2;
+  margin: 0;
+}
+
+/* dashed like the topstitch on denim */
+.receipt .receipt-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 0.8rem;
+  padding-top: 0.9rem;
+  border-top: 2px dashed #c48a1e;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.receipt .gain {
+  color: #1e7b50;
+}
+
+.receipt .loss {
+  color: #b23a30;
+}
+
+.stHtml .journey {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.journey li {
+  flex: 1;
+  margin: 0;
+  padding: 0.6rem 0 0;
+  border-top: 4px solid #d3d9e6;
+  color: #5a6480;
+  font-size: 0.9rem;
+}
+
+.journey li.done,
+.journey li.now {
+  border-top-color: #2a4b9b;
+  color: #1b2338;
+}
+
+.journey li.now {
+  font-weight: 700;
+}

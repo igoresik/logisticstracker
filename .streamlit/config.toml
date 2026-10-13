@@ -1,0 +1,15 @@
+[theme]
+base = "light"
+primaryColor = "#2A4B9B"
+backgroundColor = "#F6F7FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1B2338"
+borderColor = "#D3D9E6"
+linkColor = "#2A4B9B"
+dataframeHeaderBackgroundColor = "#EEF1F7"
+showWidgetBorder = true
+baseRadius = "0.5rem"
+# fonts come from Google Fonts; offline the app falls back to the system sans-serif
+font = "Hanken Grotesk:https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400..700&display=swap, sans-serif"
+headingFont = "Bricolage Grotesque:https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz%2Cwght@12..96%2C500..800&display=swap, sans-serif"
+headingFontWeights = [700, 650, 650]
