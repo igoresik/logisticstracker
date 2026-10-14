@@ -13,6 +13,20 @@ MILESTONE_STATUS = {
 }
 
 
+def _event(raw):
+    """One Ship24 event as saved in shipment_events; any field may be missing."""
+    when = raw.get("occurrenceDatetime")
+    status = (raw.get("status") or "").strip() or "(no description)"
+    return {
+        # the id makes checking again idempotent; fall back to time + text if Ship24 omits it
+        "event_id": raw.get("eventId") or f"{when}|{status}",
+        "occurred_at": when[:16].replace("T", " ") if when else None,
+        "status": status,
+        "location": raw.get("location") or None,
+        "milestone": (raw.get("statusMilestone") or "").strip().lower() or None,
+    }
+
+
 def track(api_key, tracking_number):
     """Return (milestone, events newest first) for a tracking number."""
     response = requests.post(
@@ -29,6 +43,9 @@ def track(api_key, tracking_number):
         errors = body.get("errors") or [{}]
         raise RuntimeError(f"Ship24: {errors[0].get('message', response.status_code)}")
 
-    tracking = body["data"]["trackings"][0]
-    events = sorted(tracking["events"], key=lambda e: e["occurrenceDatetime"], reverse=True)
-    return tracking["shipment"]["statusMilestone"], events
+    trackings = (body.get("data") or {}).get("trackings") or [{}]
+    tracking = trackings[0]
+    milestone = ((tracking.get("shipment") or {}).get("statusMilestone") or "pending").strip().lower()
+    events = [_event(raw) for raw in tracking.get("events") or []]
+    events.sort(key=lambda e: e["occurred_at"] or "", reverse=True)
+    return milestone, events

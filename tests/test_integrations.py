@@ -16,22 +16,62 @@ class Ship24Test(unittest.TestCase):
         body = {"data": {"trackings": [{
             "shipment": {"statusMilestone": "in_transit"},
             "events": [
-                {"occurrenceDatetime": "2026-10-01T09:00:00", "status": "Accepted"},
-                {"occurrenceDatetime": "2026-10-02T09:00:00", "status": "Departed"},
+                {"eventId": "a", "occurrenceDatetime": "2026-10-01T09:00:00", "status": "Accepted",
+                 "location": "Lisboa", "statusMilestone": "info_received"},
+                {"eventId": "b", "occurrenceDatetime": "2026-10-02T09:00:00", "status": "Departed",
+                 "location": None, "statusMilestone": "in_transit"},
             ],
         }]}}
         with patch("ship24.requests.post", return_value=reply(json=body)) as post:
             milestone, events = ship24.track("key", "AB123")
         self.assertEqual(milestone, "in_transit")
-        self.assertEqual(events[0]["status"], "Departed")
+        self.assertEqual(events[0], {
+            "event_id": "b", "occurred_at": "2026-10-02 09:00", "status": "Departed",
+            "location": None, "milestone": "in_transit",
+        })
+        self.assertEqual(events[1]["location"], "Lisboa")
         self.assertEqual(post.call_args.kwargs["headers"], {"Authorization": "Bearer key"})
         self.assertEqual(post.call_args.kwargs["json"], {"trackingNumber": "AB123"})
+
+    def test_missing_and_null_fields_do_not_crash(self):
+        body = {"data": {"trackings": [{
+            "shipment": {"statusMilestone": None},
+            "events": [
+                {"status": "  Parcel scanned ", "occurrenceDatetime": None},
+                {"eventId": None, "status": None, "occurrenceDatetime": "2026-10-03T10:30:00+01:00"},
+            ],
+        }]}}
+        with patch("ship24.requests.post", return_value=reply(json=body)):
+            milestone, events = ship24.track("key", "AB123")
+        self.assertEqual(milestone, "pending")
+        self.assertEqual(events[0]["occurred_at"], "2026-10-03 10:30")
+        self.assertEqual(events[0]["status"], "(no description)")
+        self.assertEqual(events[0]["event_id"], "2026-10-03T10:30:00+01:00|(no description)")
+        self.assertEqual(events[1]["occurred_at"], None)  # events without a time go last
+        self.assertEqual(events[1]["status"], "Parcel scanned")
+
+    def test_milestone_casing_is_normalised(self):
+        body = {"data": {"trackings": [{"shipment": {"statusMilestone": " Delivered "}, "events": []}]}}
+        with patch("ship24.requests.post", return_value=reply(json=body)):
+            milestone, events = ship24.track("key", "AB123")
+        self.assertEqual((milestone, events), ("delivered", []))
+        self.assertEqual(ship24.MILESTONE_STATUS[milestone], "delivered")
+
+    def test_unknown_number_gives_pending(self):
+        with patch("ship24.requests.post", return_value=reply(json={"data": {"trackings": []}})):
+            self.assertEqual(ship24.track("key", "NOPE"), ("pending", []))
 
     def test_track_raises_api_message(self):
         body = {"errors": [{"code": "unauthorized", "message": "Invalid API key"}], "data": None}
         with patch("ship24.requests.post", return_value=reply(401, body)):
             with self.assertRaisesRegex(RuntimeError, "Invalid API key"):
                 ship24.track("bad", "AB123")
+
+    def test_rate_limit_without_json_is_reported(self):
+        limited = Mock(status_code=429, ok=False, json=Mock(side_effect=ValueError("not json")))
+        with patch("ship24.requests.post", return_value=limited):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 429"):
+                ship24.track("key", "AB123")
 
 
 class EbayTest(unittest.TestCase):

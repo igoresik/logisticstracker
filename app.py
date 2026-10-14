@@ -7,7 +7,7 @@ import streamlit as st
 import db
 import ebay
 import ship24
-from finance import net_profit
+from finance import net_profit, to_bps, to_cents
 
 API_ERRORS = (requests.RequestException, RuntimeError)
 STATUS_LABELS = {
@@ -38,15 +38,16 @@ EBAY_COLUMNS = {
 }
 
 
-def eur(amount):
-    return f"−€{-amount:,.2f}" if amount < 0 else f"€{abs(amount):,.2f}"  # abs: no "-0.00"
+def eur(cents):
+    sign = "−" if cents < 0 else ""
+    return f"{sign}€{abs(cents) // 100:,}.{abs(cents) % 100:02d}"
 
 
 def headline(listings, sold):
     to_pack = sum(s["status"] == "pending" for s in sold)
     on_the_way = sum(s["status"] in ("label_created", "shipped") for s in sold)
     made = sum(
-        net_profit(s["sale_price"], s["cost_price"], s["fee_pct"], s["fee_fixed"], s["shipping_cost"])[1]
+        net_profit(s["sale_cents"], s["cost_cents"], s["fee_bps"], s["fee_fixed_cents"], s["shipping_cents"])[1]
         for s in sold
         if s["status"] != "returned"
     )
@@ -76,22 +77,24 @@ def listing_fields(platform_names, key, listing=None):
         key=f"{key}_platform",
     )
     left, right = st.columns(2)
-    cost_price = left.number_input(
-        "You paid (€)", min_value=0.0, value=current.get("cost_price", 0.0), step=0.5, key=f"{key}_cost"
+    # the inputs work in euros; everything past this point is whole cents
+    cost = left.number_input(
+        "You paid (€)", min_value=0.0, value=current.get("cost_cents", 0) / 100, step=0.5, key=f"{key}_cost"
     )
-    list_price = right.number_input(
-        "Asking price (€)", min_value=0.0, value=current.get("list_price", 0.0), step=0.5, key=f"{key}_price"
+    asking = right.number_input(
+        "Asking price (€)", min_value=0.0, value=current.get("list_cents", 0) / 100, step=0.5, key=f"{key}_price"
     )
-    if not title.strip() or list_price <= 0:
+    cost_cents, list_cents = to_cents(cost), to_cents(asking)
+    if not title.strip() or list_cents <= 0:
         return None
-    return title.strip(), brand.strip(), size.strip(), platform, cost_price, list_price
+    return title.strip(), brand.strip(), size.strip(), platform, cost_cents, list_cents
 
 
-def receipt(listing, sale_price, shipping_cost):
+def receipt(listing, sale_cents, shipping_cents):
     fee, net, margin = net_profit(
-        sale_price, listing["cost_price"], listing["fee_pct"], listing["fee_fixed"], shipping_cost
+        sale_cents, listing["cost_cents"], listing["fee_bps"], listing["fee_fixed_cents"], shipping_cents
     )
-    discount = listing["list_price"] - sale_price
+    discount = listing["list_cents"] - sale_cents
     if discount > 0:
         against_asking = f"{eur(discount)} under asking"
     elif discount < 0:
@@ -99,10 +102,10 @@ def receipt(listing, sale_price, shipping_cost):
     else:
         against_asking = "at asking price"
     lines = [
-        ("Buyer pays", sale_price),
+        ("Buyer pays", sale_cents),
         (f"{listing['platform']} fee", -fee),
-        ("You paid", -listing["cost_price"]),
-        ("Shipping", -shipping_cost),
+        ("You paid", -listing["cost_cents"]),
+        ("Shipping", -shipping_cents),
     ]
     rows = "".join(
         f'<div class="receipt-line"><dt>{escape(label)}</dt><dd>{eur(amount)}</dd></div>'
@@ -111,7 +114,7 @@ def receipt(listing, sale_price, shipping_cost):
     return f"""
     <div class="receipt-wrap"><div class="receipt">
       <p class="receipt-title">{escape(listing["title"])}</p>
-      <p class="receipt-note">{escape(listing["platform"])}, asking {eur(listing["list_price"])}</p>
+      <p class="receipt-note">{escape(listing["platform"])}, asking {eur(listing["list_cents"])}</p>
       <dl>{rows}</dl>
       <p class="receipt-total"><span>You keep</span>
         <span class="{"loss" if net < 0 else "gain"}">{eur(net)}</span></p>
@@ -173,11 +176,11 @@ with inventory_tab:
                     "brand": row["brand"],
                     "size": row["size"],
                     "platform": row["platform"],
-                    "cost_price": row["cost_price"],
-                    "list_price": row["list_price"],
-                    "margin": net_profit(
-                        row["list_price"], row["cost_price"], row["fee_pct"], row["fee_fixed"]
-                    )[2],
+                    "cost": row["cost_cents"] / 100,  # display only
+                    "asking": row["list_cents"] / 100,
+                    "margin": float(
+                        net_profit(row["list_cents"], row["cost_cents"], row["fee_bps"], row["fee_fixed_cents"])[2]
+                    ),
                     "listed": datetime.fromisoformat(row["created_at"]).date(),
                 }
                 for row in listings
@@ -190,8 +193,8 @@ with inventory_tab:
                     "brand": "Brand",
                     "size": "Size",
                     "platform": "Platform",
-                    "cost_price": st.column_config.NumberColumn("You paid", format="€%.2f"),
-                    "list_price": st.column_config.NumberColumn("Asking", format="€%.2f"),
+                    "cost": st.column_config.NumberColumn("You paid", format="€%.2f"),
+                    "asking": st.column_config.NumberColumn("Asking", format="€%.2f"),
                     "margin": st.column_config.ProgressColumn(
                         "Margin at asking", min_value=0, max_value=100, format="%.0f%%"
                     ),
@@ -220,7 +223,10 @@ with inventory_tab:
 
         with st.expander("Platform fees"):
             fees = st.data_editor(
-                platforms,
+                [
+                    {"name": p["name"], "fee_pct": p["fee_bps"] / 100, "fee_fixed": p["fee_fixed_cents"] / 100}
+                    for p in platforms
+                ],
                 hide_index=True,
                 disabled=["name"],
                 column_config={
@@ -232,8 +238,8 @@ with inventory_tab:
             if st.button("Save fees"):
                 for fee in fees:
                     db.execute(
-                        "UPDATE platforms SET fee_pct = ?, fee_fixed = ? WHERE name = ?",
-                        (fee["fee_pct"], fee["fee_fixed"], fee["name"]),
+                        "UPDATE platforms SET fee_bps = ?, fee_fixed_cents = ? WHERE name = ?",
+                        (to_bps(fee["fee_pct"] or 0), to_cents(fee["fee_fixed"] or 0), fee["name"]),
                     )
                 st.rerun()
 
@@ -246,23 +252,24 @@ with profit_tab:
             listing = st.selectbox(
                 "Listing",
                 listings,
-                format_func=lambda row: f"{row['title']} ({row['platform']}, {eur(row['list_price'])})",
+                format_func=lambda row: f"{row['title']} ({row['platform']}, {eur(row['list_cents'])})",
             )
             # keyed per listing so the offer resets to that listing's price
-            sale_price = st.number_input(
+            offer = st.number_input(
                 "Buyer's offer (€)",
                 min_value=0.0,
-                value=listing["list_price"],
+                value=listing["list_cents"] / 100,
                 step=0.5,
                 key=f"offer_{listing['id']}",
             )
-            shipping_cost = st.number_input(
+            shipping = st.number_input(
                 "Shipping you pay (€)", min_value=0.0, step=0.5, key=f"shipping_{listing['id']}"
             )
-            if st.button("Mark sold at this price", type="primary", disabled=sale_price <= 0):
-                db.mark_sold(listing["id"], sale_price, shipping_cost)
+            sale_cents, shipping_cents = to_cents(offer), to_cents(shipping)
+            if st.button("Mark sold at this price", type="primary", disabled=sale_cents <= 0):
+                db.mark_sold(listing["id"], sale_cents, shipping_cents)
                 st.rerun()
-        result.html(receipt(listing, sale_price, shipping_cost))
+        result.html(receipt(listing, sale_cents, shipping_cents))
 
 with shipping_tab:
     shipments = db.shipments()
@@ -273,6 +280,8 @@ with shipping_tab:
             [
                 {
                     **{key: "" if value is None else value for key, value in row.items()},
+                    "sold_for": row["sale_cents"] / 100,
+                    "shipping": row["shipping_cents"] / 100,
                     "status": STATUS_LABELS[row["status"]],
                     "updated_at": row["updated_at"][:10],
                 }
@@ -280,18 +289,18 @@ with shipping_tab:
             ],
             hide_index=True,
             column_order=[
-                "title", "platform", "sale_price", "status", "carrier",
-                "tracking_number", "last_event", "shipping_cost", "updated_at",
+                "title", "platform", "sold_for", "status", "carrier",
+                "tracking_number", "last_event", "shipping", "updated_at",
             ],
             column_config={
                 "title": "Title",
                 "platform": "Platform",
-                "sale_price": st.column_config.NumberColumn("Sold for", format="€%.2f"),
+                "sold_for": st.column_config.NumberColumn("Sold for", format="€%.2f"),
                 "status": "Status",
                 "carrier": "Carrier",
                 "tracking_number": "Tracking number",
                 "last_event": "Latest event",
-                "shipping_cost": st.column_config.NumberColumn("Shipping", format="€%.2f"),
+                "shipping": st.column_config.NumberColumn("Shipping", format="€%.2f"),
                 "updated_at": "Updated",
             },
         )
@@ -325,7 +334,6 @@ with shipping_tab:
                 st.html(journey(shipment["status"]))
 
             api_key = settings.get("ship24_api_key")
-            events_key = f"events_{shipment['id']}"
             if not api_key:
                 st.caption("Add a Ship24 key in Settings to check tracking from here.")
             elif not shipment["tracking_number"]:
@@ -339,18 +347,16 @@ with shipping_tab:
                 else:
                     last_event = milestone
                     if events:
-                        when = events[0]["occurrenceDatetime"][:16].replace("T", " ")
-                        last_event = f"{when} {events[0]['status']}"
+                        last_event = f"{events[0]['occurred_at'] or ''} {events[0]['status']}".strip()
                     status = ship24.MILESTONE_STATUS.get(milestone, shipment["status"])
-                    db.update_tracking(shipment["id"], status, last_event)
-                    st.session_state[events_key] = events
+                    db.record_tracking(shipment["id"], status, last_event, events)
                     st.rerun()
-            if st.session_state.get(events_key):
-                columns = {"occurrenceDatetime": "When", "status": "What", "location": "Where"}
+            history = db.shipment_events(shipment["id"])
+            if history:
                 st.dataframe(
-                    [{c: event.get(c) for c in columns} for event in st.session_state[events_key]],
+                    history,
                     hide_index=True,
-                    column_config=columns,
+                    column_config={"occurred_at": "When", "status": "What", "location": "Where"},
                 )
 
 with ebay_tab:
