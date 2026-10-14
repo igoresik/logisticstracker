@@ -42,6 +42,7 @@ To build the exe yourself: `powershell -ExecutionPolicy Bypass -File build.ps1`.
 | `schema.sql` | Tables and starting platform fees |
 | `.streamlit/config.toml` | Colours and fonts |
 | `style.css` | Look of the profit receipt and the parcel progress bar |
+| `scripts/live_check.py` | Runs the real Ship24 and eBay calls once, to check the parsing |
 | `tests/` | Unit tests (the API tests use fake responses) |
 
 ## Flow
@@ -84,6 +85,23 @@ Each press is one request to Ship24 and counts against your plan.
 The sign-in lasts about 18 months, then step 4 is needed again.
 
 Vinted and Depop have no API open to the public, so those listings are entered by hand.
+
+## Data
+
+- Money is stored as whole cents (`INTEGER`) and fee rates as basis points (12.8% = 1280), so no amount goes through floating point. Fees round half up to the cent.
+- Every tracking event Ship24 reports is saved in `shipment_events`, so a parcel's history survives a restart. Checking again only adds events not seen before.
+- A database from v0.1 (euros stored as `REAL`) is converted on first start, all or nothing. The old file is kept next to it as `tracker.before-cents.db`.
+
+## Checking against the real APIs
+
+The unit tests use fake responses. To check the parsing against the real services, save your keys in the app first, then:
+
+```
+.venv\Scripts\python scripts\live_check.py ship24 <tracking number>
+.venv\Scripts\python scripts\live_check.py ebay
+```
+
+It prints the shape of the raw reply (field names and types only) and what the app made of it. Keys are never printed. Add `--exe` to use the keys saved by the exe.
 
 ## Tests
 
