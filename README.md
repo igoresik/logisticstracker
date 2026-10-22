@@ -2,8 +2,8 @@
 
 **A free Windows app for clothing resellers on Vinted, Depop and eBay.** Log what you list, see what you really keep from an offer after platform fees, and track your parcels, all in one window. Your data stays on your PC.
 
-[![Download](https://img.shields.io/github/v/release/igoresik/logisticstracker?label=download&color=2A4B9B)](https://github.com/igoresik/logisticstracker/releases/latest)
-[![License: MIT](https://img.shields.io/github/license/igoresik/logisticstracker)](LICENSE)
+[![Download](https://img.shields.io/github/v/release/igoresik/reseller-tracker?label=download&color=2A4B9B)](https://github.com/igoresik/reseller-tracker/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/igoresik/reseller-tracker)](LICENSE)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-1B2338)
 ![Built with Python and Streamlit](https://img.shields.io/badge/built%20with-Python%20%2B%20Streamlit-1B2338)
 
