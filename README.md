@@ -1,8 +1,27 @@
 # Logistics Tracker
 
-Small Streamlit app for reselling clothes: log listings, check the net profit of an offer, and track shipping labels. Data lives in a local SQLite file.
+**A free Windows app for clothing resellers on Vinted, Depop and eBay.** Log what you list, see what you really keep from an offer after platform fees, and track your parcels, all in one window. Your data stays on your PC.
 
-![Profit tab: the breakdown of a sale drawn as a receipt](docs/profit.jpg)
+[![Download](https://img.shields.io/github/v/release/igoresik/logisticstracker?label=download&color=2A4B9B)](https://github.com/igoresik/logisticstracker/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/igoresik/logisticstracker)](LICENSE)
+![Platform: Windows](https://img.shields.io/badge/platform-Windows-1B2338)
+![Built with Python and Streamlit](https://img.shields.io/badge/built%20with-Python%20%2B%20Streamlit-1B2338)
+
+![Profit tab: what you keep from a buyer's offer, drawn as a receipt](docs/profit.png)
+
+## What it does
+
+- **Inventory:** every listing with what you paid, the asking price and the margin, across Vinted, Depop and eBay.
+- **Profit:** type the buyer's offer and the shipping you pay, and a receipt shows the platform fee and what you keep. Each platform's fees can be edited.
+- **Shipping:** each sale from "to pack" to "delivered", with carrier and tracking number. With a free Ship24 key it checks tracking and keeps the parcel's history.
+- **eBay:** connect your account to see your active listings, Best Offers and recent orders. Read-only, nothing is changed on eBay.
+- **Private:** everything is saved in a SQLite file on your computer. On Windows, the API keys you save are encrypted with your Windows account.
+
+| Inventory | Shipping |
+|---|---|
+| ![Inventory tab: live listings with what you paid, the asking price and the margin](docs/inventory.png) | ![Shipping tab: parcels with their progress and tracking history](docs/shipping.png) |
+
+The screenshots use made-up listings.
 
 ## Download (Windows)
 
